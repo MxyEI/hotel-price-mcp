@@ -1,4 +1,5 @@
 import { launch } from 'cloakbrowser';
+import { anonymizeProxy, closeAnonymizedProxy } from 'proxy-chain';
 import type { Browser } from 'playwright-core';
 import { env } from '../config/env.js';
 
@@ -8,11 +9,19 @@ type CloakLaunchOptions = {
   geoip: boolean;
   proxy?: string;
   args?: string[];
+  launchOptions?: {
+    proxy?: {
+      server: string;
+      username?: string;
+      password?: string;
+    };
+  };
 };
 
 export type CloakBrowserLaunchMeta = {
   fingerprintSeed?: number;
   proxyUrl?: string;
+  anonymizedProxyUrl?: string;
 };
 
 export type CloakBrowserLaunch = {
@@ -33,7 +42,7 @@ export async function launchCloakBrowser(): Promise<CloakBrowserLaunch> {
   };
 
   if (env.CLOAK_PROXY_URL) {
-    options.proxy = env.CLOAK_PROXY_URL;
+    await applyProxyOption(options, env.CLOAK_PROXY_URL);
   }
 
   if (fingerprintSeed) {
@@ -46,8 +55,45 @@ export async function launchCloakBrowser(): Promise<CloakBrowserLaunch> {
     meta: {
       fingerprintSeed,
       proxyUrl: env.CLOAK_PROXY_URL,
+      anonymizedProxyUrl: options.proxy !== env.CLOAK_PROXY_URL ? options.proxy : undefined,
     },
   };
+}
+
+export async function closeCloakProxy(meta: CloakBrowserLaunchMeta): Promise<void> {
+  if (meta.anonymizedProxyUrl) {
+    await closeAnonymizedProxy(meta.anonymizedProxyUrl, true).catch(() => undefined);
+  }
+}
+
+async function applyProxyOption(options: CloakLaunchOptions, proxyUrl: string): Promise<void> {
+  const parsed = parseProxyUrl(proxyUrl);
+
+  // Chromium rejects SOCKS URLs with inline credentials in --proxy-server.
+  // Playwright also does not support SOCKS5 auth directly. A local HTTP proxy
+  // bridge forwards traffic to the authenticated SOCKS upstream.
+  if (parsed?.server.startsWith('socks') && parsed.username) {
+    options.proxy = await anonymizeProxy(proxyUrl);
+    options.geoip = false;
+    return;
+  }
+
+  options.proxy = proxyUrl;
+}
+
+function parseProxyUrl(proxyUrl: string): { server: string; username?: string; password?: string } | undefined {
+  try {
+    const url = new URL(proxyUrl);
+    const server = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`;
+
+    return {
+      server,
+      username: url.username ? decodeURIComponent(url.username) : undefined,
+      password: url.password ? decodeURIComponent(url.password) : undefined,
+    };
+  } catch {
+    return undefined;
+  }
 }
 
 function randomFingerprintSeed(): number {

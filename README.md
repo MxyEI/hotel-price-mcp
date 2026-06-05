@@ -107,6 +107,8 @@ http://user:pass@host:port
 socks5://user:pass@host:port
 ```
 
+带账号密码的 SOCKS5 代理会自动通过本地 HTTP 代理桥转发，因为 Chromium 不支持直接使用 `socks5://user:pass@host:port` 形式的代理认证。此模式下会关闭自动 GeoIP，避免首次下载 GeoIP 数据库拖慢查询。
+
 每次查价都会启动一个新的 CloakBrowser 实例，并随机生成新的指纹 seed：
 
 ```text
