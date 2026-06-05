@@ -72,6 +72,49 @@ curl -X POST http://localhost:3100/price/query \
 }
 ```
 
+## IHG MCP 工具
+
+洲际查价也提供 stdio MCP server，适合 Claude、Codex、OpenClaw、Hermes 等支持 MCP 的 Agent 客户端调用。
+
+先构建：
+
+```bash
+npm run build
+```
+
+MCP 启动命令：
+
+```bash
+node /Users/apple/PycharmProjects/hotel-price-mcp/dist/mcp/ihgMcpServer.js
+```
+
+工具名：
+
+```text
+ihg_query_price
+```
+
+工具输入：
+
+```json
+{
+  "hotelName": "西安经开洲际",
+  "checkIn": "2026-07-01",
+  "checkOut": "2026-07-02",
+  "rooms": 1,
+  "adults": 2,
+  "children": 0
+}
+```
+
+MCP 配置示例：
+
+[config/mcp.ihg.example.json](config/mcp.ihg.example.json)
+
+同时提供一份可移植 skill 说明：
+
+[skills/ihg-price-query/SKILL.md](skills/ihg-price-query/SKILL.md)
+
 ## 配置
 
 `.env` 支持：

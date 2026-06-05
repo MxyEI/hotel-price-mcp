@@ -15,15 +15,15 @@ export class IhgProvider implements HotelPriceProvider {
   }
 
   private async runQuery(input: PriceQuery): Promise<HotelPriceResult> {
-    const session = await this.browserPool.page().catch((error) => ({ error }));
+      const session = await this.browserPool.page().catch((error) => ({ error }));
     if ('error' in session) {
       return unavailableResult(this.name, input, 'error', session.error instanceof Error ? session.error.message : String(session.error));
     }
-    const { browser, context, page, meta } = session;
+      const { browser, context, page, meta } = session;
 
     try {
       if (meta.fingerprintSeed) {
-        console.log(`[ihg] fingerprint=${meta.fingerprintSeed}`);
+        console.error(`[ihg] fingerprint=${meta.fingerprintSeed}`);
       }
       const apiClient = new IhgApiClient(page);
       const match = await apiClient.findPrice(input);

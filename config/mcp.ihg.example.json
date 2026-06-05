@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "hotel-price-ihg": {
+      "command": "node",
+      "args": [
+        "/Users/apple/PycharmProjects/hotel-price-mcp/dist/mcp/ihgMcpServer.js"
+      ],
+      "cwd": "/Users/apple/PycharmProjects/hotel-price-mcp"
+    }
+  }
+}
