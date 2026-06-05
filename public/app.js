@@ -9,7 +9,8 @@ const els = {
   browserSummary: document.querySelector('#browserSummary'),
   priceForm: document.querySelector('#priceForm'),
   resultRows: document.querySelector('#resultRows'),
-  openMarriottButton: document.querySelector('#openMarriottButton'),
+  manualProvider: document.querySelector('#manualProvider'),
+  openBrowserButton: document.querySelector('#openBrowserButton'),
   closeBrowserButton: document.querySelector('#closeBrowserButton'),
   openSearchUrl: document.querySelector('#openSearchUrl'),
   sessionId: document.querySelector('#sessionId'),
@@ -20,7 +21,7 @@ const els = {
 
 els.healthButton.addEventListener('click', checkHealth);
 els.priceForm.addEventListener('submit', handlePriceSubmit);
-els.openMarriottButton.addEventListener('click', openMarriottBrowser);
+els.openBrowserButton.addEventListener('click', openManualBrowser);
 els.closeBrowserButton.addEventListener('click', closeManualBrowser);
 
 await checkHealth();
@@ -48,18 +49,19 @@ async function handlePriceSubmit(event) {
   }
 }
 
-async function openMarriottBrowser() {
+async function openManualBrowser() {
+  const provider = els.manualProvider.value;
   const payload = {
-    provider: 'marriott',
+    provider,
   };
 
   if (els.openSearchUrl.checked) {
     Object.assign(payload, formPayload());
   } else {
-    payload.targetUrl = 'https://www.marriott.com/default.mi';
+    payload.targetUrl = providerHomeUrl(provider);
   }
 
-  els.openMarriottButton.disabled = true;
+  els.openBrowserButton.disabled = true;
   writeBrowserLog('正在启动 CloakBrowser...');
 
   try {
@@ -75,7 +77,7 @@ async function openMarriottBrowser() {
     ].join('\n'));
   } catch (error) {
     writeBrowserLog(`启动失败: ${error.message}`);
-    els.openMarriottButton.disabled = false;
+    els.openBrowserButton.disabled = false;
   }
 }
 
@@ -97,7 +99,7 @@ async function closeManualBrowser() {
   } catch (error) {
     writeBrowserLog(`关闭失败: ${error.message}`);
   } finally {
-    els.openMarriottButton.disabled = false;
+    els.openBrowserButton.disabled = false;
   }
 }
 
@@ -124,12 +126,12 @@ async function pollSession() {
     renderSession(session);
     if (session.status === 'closed' || session.status === 'error') {
       stopPolling();
-      els.openMarriottButton.disabled = false;
+      els.openBrowserButton.disabled = false;
     }
   } catch (error) {
     stopPolling();
     writeBrowserLog(`状态查询失败: ${error.message}`);
-    els.openMarriottButton.disabled = false;
+    els.openBrowserButton.disabled = false;
   }
 }
 
@@ -208,6 +210,19 @@ function formPayload() {
     adults: Number(data.get('adults') || 2),
     children: Number(data.get('children') || 0),
   };
+}
+
+function providerHomeUrl(provider) {
+  switch (provider) {
+    case 'ctrip':
+      return 'https://www.ctrip.com/';
+    case 'ihg':
+      return 'https://www.ihg.com.cn/hotels/cn/zh/reservation';
+    case 'marriott':
+      return 'https://www.marriott.com/default.mi';
+    default:
+      return 'https://www.marriott.com/default.mi';
+  }
 }
 
 async function apiGet(url) {

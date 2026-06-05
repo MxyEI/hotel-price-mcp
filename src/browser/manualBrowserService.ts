@@ -35,6 +35,8 @@ export type ManualBrowserStartInput = {
 };
 
 const sessions = new Map<string, ManualBrowserSession>();
+const CTRIP_DEFAULT_URL = 'https://www.ctrip.com/';
+const IHG_DEFAULT_URL = 'https://www.ihg.com.cn/hotels/cn/zh/reservation';
 const MARRIOTT_DEFAULT_URL = 'https://www.marriott.com/default.mi';
 
 export class ManualBrowserService {
@@ -164,10 +166,53 @@ export class ManualBrowserService {
 }
 
 function buildProviderUrl(provider: string, input: ManualBrowserStartInput): string {
-  if (provider !== 'marriott') {
-    return input.targetUrl ?? MARRIOTT_DEFAULT_URL;
+  switch (provider) {
+    case 'ctrip':
+      return buildCtripUrl(input);
+    case 'ihg':
+      return buildIhgUrl(input);
+    case 'marriott':
+      return buildMarriottUrl(input);
+    default:
+      return input.targetUrl ?? MARRIOTT_DEFAULT_URL;
+  }
+}
+
+function buildCtripUrl(input: ManualBrowserStartInput): string {
+  if (!input.hotelName || !input.checkIn || !input.checkOut) {
+    return CTRIP_DEFAULT_URL;
   }
 
+  const params = new URLSearchParams({
+    keyword: input.hotelName,
+    checkin: input.checkIn,
+    checkout: input.checkOut,
+    room: String(input.rooms ?? 1),
+    adult: String(input.adults ?? 2),
+    children: String(input.children ?? 0),
+  });
+
+  return `https://hotels.ctrip.com/hotels/list?${params}`;
+}
+
+function buildIhgUrl(input: ManualBrowserStartInput): string {
+  if (!input.hotelName || !input.checkIn || !input.checkOut) {
+    return IHG_DEFAULT_URL;
+  }
+
+  const params = new URLSearchParams({
+    qDest: input.hotelName,
+    qCiD: input.checkIn,
+    qCoD: input.checkOut,
+    qRms: String(input.rooms ?? 1),
+    qAdlt: String(input.adults ?? 2),
+    qChld: String(input.children ?? 0),
+  });
+
+  return `${IHG_DEFAULT_URL}?${params}`;
+}
+
+function buildMarriottUrl(input: ManualBrowserStartInput): string {
   if (!input.hotelName || !input.checkIn || !input.checkOut) {
     return MARRIOTT_DEFAULT_URL;
   }

@@ -11,7 +11,7 @@
     <header class="topbar">
       <div>
         <h1>酒店查价控制台</h1>
-        <p>携程、洲际、万豪查价调试，以及万豪 CloakBrowser 手动查询。</p>
+        <p>携程、洲际、万豪查价调试，以及 CloakBrowser 手动查询。</p>
       </div>
       <button id="healthButton" class="icon-button" title="刷新服务状态" aria-label="刷新服务状态">
         <span class="icon">↻</span>
@@ -80,17 +80,25 @@
       <article class="panel">
         <div class="panel-head">
           <div>
-            <h2>万豪手动浏览器</h2>
-            <p>打开真实 CloakBrowser 窗口，手动进入万豪页面查询。</p>
+            <h2>手动浏览器</h2>
+            <p>选择站点后打开真实 CloakBrowser 窗口，手动查价或调试页面。</p>
           </div>
         </div>
 
         <div class="browser-actions">
+          <label>
+            <span>打开站点</span>
+            <select id="manualProvider">
+              <option value="ctrip">携程</option>
+              <option value="ihg">洲际</option>
+              <option value="marriott" selected>万豪</option>
+            </select>
+          </label>
           <label class="toggle-row">
             <input id="openSearchUrl" type="checkbox" checked>
-            <span>直接打开带日期的万豪搜索页</span>
+            <span>直接打开带酒店和日期的站点入口</span>
           </label>
-          <button id="openMarriottButton" class="primary-button">
+          <button id="openBrowserButton" class="primary-button">
             <span class="icon">▣</span>
             打开浏览器
           </button>
