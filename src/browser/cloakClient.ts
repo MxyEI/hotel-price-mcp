@@ -7,9 +7,25 @@ type CloakLaunchOptions = {
   humanize: boolean;
   geoip: boolean;
   proxy?: string;
+  args?: string[];
 };
 
-export async function launchCloakBrowser(): Promise<Browser> {
+export type CloakBrowserLaunchMeta = {
+  fingerprintSeed?: number;
+  proxyUrl?: string;
+};
+
+export type CloakBrowserLaunch = {
+  browser: Browser;
+  meta: CloakBrowserLaunchMeta;
+};
+
+export async function launchCloakBrowser(): Promise<CloakBrowserLaunch> {
+  if (env.CLOAK_REQUIRE_PROXY && !env.CLOAK_PROXY_URL) {
+    throw new Error('CLOAK_PROXY_URL is required when CLOAK_REQUIRE_PROXY=true');
+  }
+
+  const fingerprintSeed = env.CLOAK_FINGERPRINT_ROTATE ? randomFingerprintSeed() : undefined;
   const options: CloakLaunchOptions = {
     headless: env.CLOAK_HEADLESS,
     humanize: env.CLOAK_HUMANIZE,
@@ -20,5 +36,27 @@ export async function launchCloakBrowser(): Promise<Browser> {
     options.proxy = env.CLOAK_PROXY_URL;
   }
 
-  return launch(options) as Promise<Browser>;
+  if (fingerprintSeed) {
+    options.args = [`--fingerprint=${fingerprintSeed}`];
+  }
+
+  const browser = await launch(options) as Browser;
+  return {
+    browser,
+    meta: {
+      fingerprintSeed,
+      proxyUrl: env.CLOAK_PROXY_URL,
+    },
+  };
+}
+
+function randomFingerprintSeed(): number {
+  const min = env.CLOAK_FINGERPRINT_MIN;
+  const max = env.CLOAK_FINGERPRINT_MAX;
+
+  if (max <= min) {
+    return min;
+  }
+
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }

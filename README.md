@@ -82,12 +82,40 @@ LOG_LEVEL=info
 CLOAK_HEADLESS=false
 CLOAK_HUMANIZE=true
 CLOAK_GEOIP=true
-CLOAK_PROXY_URL=
+CLOAK_REQUIRE_PROXY=true
+CLOAK_PROXY_URL=http://user:pass@host:port
+CLOAK_FINGERPRINT_ROTATE=true
+CLOAK_FINGERPRINT_MIN=10000
+CLOAK_FINGERPRINT_MAX=999999999
 QUERY_TIMEOUT_MS=90000
 ARTIFACT_DIR=.artifacts
 ```
 
-强风控页面建议保持 `CLOAK_HEADLESS=false` 和 `CLOAK_HUMANIZE=true`，如需代理则设置 `CLOAK_PROXY_URL`。
+强风控页面建议保持 `CLOAK_HEADLESS=false`、`CLOAK_HUMANIZE=true` 和 `CLOAK_GEOIP=true`。
+
+默认要求必须配置代理：
+
+```text
+CLOAK_REQUIRE_PROXY=true
+CLOAK_PROXY_URL=http://user:pass@host:port
+```
+
+支持 HTTP 和 SOCKS5：
+
+```text
+http://user:pass@host:port
+socks5://user:pass@host:port
+```
+
+每次查价都会启动一个新的 CloakBrowser 实例，并随机生成新的指纹 seed：
+
+```text
+CLOAK_FINGERPRINT_ROTATE=true
+CLOAK_FINGERPRINT_MIN=10000
+CLOAK_FINGERPRINT_MAX=999999999
+```
+
+如果需要固定指纹排查问题，可以临时设置 `CLOAK_FINGERPRINT_ROTATE=false`。
 
 ## 后续落地重点
 

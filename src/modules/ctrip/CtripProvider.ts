@@ -17,7 +17,11 @@ export class CtripProvider implements HotelPriceProvider {
   }
 
   private async runQuery(input: PriceQuery): Promise<HotelPriceResult> {
-    const { context, page } = await this.browserPool.page();
+    const session = await this.browserPool.page().catch((error) => ({ error }));
+    if ('error' in session) {
+      return unavailableResult(this.name, input, 'error', session.error instanceof Error ? session.error.message : String(session.error));
+    }
+    const { browser, context, page } = session;
 
     try {
       await page.goto(ctripSelectors.homeUrl, { waitUntil: 'domcontentloaded' });
@@ -47,6 +51,7 @@ export class CtripProvider implements HotelPriceProvider {
       return unavailableResult(this.name, input, 'error', error instanceof Error ? error.message : String(error), page.url(), artifact);
     } finally {
       await context.close().catch(() => undefined);
+      await this.browserPool.release(browser);
     }
   }
 

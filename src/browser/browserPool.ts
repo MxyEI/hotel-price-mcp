@@ -1,34 +1,30 @@
 import type { Browser, BrowserContext, Page } from 'playwright-core';
+import type { CloakBrowserLaunchMeta } from './cloakClient.js';
 import { launchCloakBrowser } from './cloakClient.js';
 
 export class BrowserPool {
-  private browser?: Browser;
+  private readonly activeBrowsers = new Set<Browser>();
 
-  async page(): Promise<{ context: BrowserContext; page: Page }> {
-    const browser = await this.getBrowser();
+  async page(): Promise<{ browser: Browser; context: BrowserContext; page: Page; meta: CloakBrowserLaunchMeta }> {
+    const { browser, meta } = await launchCloakBrowser();
+    this.activeBrowsers.add(browser);
     const context = await browser.newContext({
       viewport: { width: 1365, height: 900 },
       locale: 'zh-CN',
       timezoneId: 'Asia/Shanghai',
     });
     const page = await context.newPage();
-    return { context, page };
+    return { browser, context, page, meta };
+  }
+
+  async release(browser: Browser): Promise<void> {
+    this.activeBrowsers.delete(browser);
+    await browser.close().catch(() => undefined);
   }
 
   async close(): Promise<void> {
-    if (!this.browser) {
-      return;
-    }
-
-    await this.browser.close();
-    this.browser = undefined;
-  }
-
-  private async getBrowser(): Promise<Browser> {
-    if (!this.browser || !this.browser.isConnected()) {
-      this.browser = await launchCloakBrowser();
-    }
-
-    return this.browser;
+    const browsers = [...this.activeBrowsers];
+    this.activeBrowsers.clear();
+    await Promise.all(browsers.map((browser) => browser.close().catch(() => undefined)));
   }
 }
