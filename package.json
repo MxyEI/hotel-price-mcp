@@ -7,6 +7,8 @@
     "dev": "npm run build && node dist/app.js",
     "dev:tsx": "tsx src/app.ts",
     "dev:watch": "tsx watch src/app.ts",
+    "debug:provider": "npm run build && node dist/debug/runProvider.js",
+    "debug:provider:tsx": "tsx src/debug/runProvider.ts",
     "start": "node dist/app.js",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
