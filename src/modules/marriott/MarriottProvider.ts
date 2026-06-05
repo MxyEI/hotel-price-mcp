@@ -1,11 +1,9 @@
-import type { Locator, Page } from 'playwright-core';
 import { BrowserPool } from '../../browser/browserPool.js';
-import { firstLocatorWithItems, firstVisible, textFromFirst } from '../../browser/locatorUtils.js';
 import { detectPageBlock, saveFailureArtifact, withTimeout } from '../../browser/pageGuards.js';
 import { env } from '../../config/env.js';
-import { nameConfidence, parsePrice, successResult, unavailableResult } from '../base/normalize.js';
-import type { HotelPriceProvider, HotelPriceResult, PriceQuery, RateCandidate } from '../base/types.js';
-import { marriottSelectors } from './marriott.selectors.js';
+import { successResult, unavailableResult } from '../base/normalize.js';
+import type { HotelPriceProvider, HotelPriceResult, PriceQuery } from '../base/types.js';
+import { MarriottApiClient } from './MarriottApiClient.js';
 
 export class MarriottProvider implements HotelPriceProvider {
   name = 'marriott' as const;
@@ -21,11 +19,15 @@ export class MarriottProvider implements HotelPriceProvider {
     if ('error' in session) {
       return unavailableResult(this.name, input, 'error', session.error instanceof Error ? session.error.message : String(session.error));
     }
-    const { browser, context, page } = session;
+    const { browser, context, page, meta } = session;
 
     try {
-      await page.goto(marriottSelectors.homeUrl, { waitUntil: 'domcontentloaded' });
-      await this.fillSearch(page, input);
+      if (meta.fingerprintSeed) {
+        console.error(`[marriott] fingerprint=${meta.fingerprintSeed}`);
+      }
+
+      const apiClient = new MarriottApiClient(page);
+      const match = await apiClient.findPrice(input);
 
       const blocked = await detectPageBlock(page);
       if (blocked) {
@@ -33,19 +35,17 @@ export class MarriottProvider implements HotelPriceProvider {
         return unavailableResult(this.name, input, blocked, `${blocked} detected`, page.url(), artifact);
       }
 
-      const match = await this.findBestHotel(page, input.hotelName);
       if (!match) {
         const artifact = await saveFailureArtifact(this.name, page, 'hotel-not-found');
-        return unavailableResult(this.name, input, 'hotel_not_found', 'No matching Marriott property found', page.url(), artifact);
+        return unavailableResult(this.name, input, 'hotel_not_found', 'No matching Marriott API hotel found', page.url(), artifact);
       }
 
-      const candidate = await this.extractRate(match.card);
-      if (!candidate.price) {
+      if (!match.candidate.price) {
         const artifact = await saveFailureArtifact(this.name, page, 'no-availability');
-        return unavailableResult(this.name, input, 'no_availability', 'No public rate found on matched Marriott property', page.url(), artifact);
+        return unavailableResult(this.name, input, 'no_availability', 'No public Marriott API rate found on matched property', match.sourceUrl, artifact);
       }
 
-      return successResult(this.name, input, candidate, page.url(), match.name, match.confidence);
+      return successResult(this.name, input, match.candidate, match.sourceUrl, match.hotelName, match.confidence);
     } catch (error) {
       const artifact = await saveFailureArtifact(this.name, page, 'error');
       return unavailableResult(this.name, input, 'error', error instanceof Error ? error.message : String(error), page.url(), artifact);
@@ -53,63 +53,5 @@ export class MarriottProvider implements HotelPriceProvider {
       await context.close().catch(() => undefined);
       await this.browserPool.release(browser);
     }
-  }
-
-  private async fillSearch(page: Page, input: PriceQuery): Promise<void> {
-    const destinationInput = await firstVisible(page, marriottSelectors.destinationInput);
-    await destinationInput.fill(input.hotelName);
-    await page.keyboard.press('Enter').catch(() => undefined);
-    await page.waitForTimeout(1_000);
-
-    await this.tryFillDate(page, 'checkIn', input.checkIn);
-    await this.tryFillDate(page, 'checkOut', input.checkOut);
-
-    const searchButton = await firstVisible(page, marriottSelectors.searchButton);
-    await Promise.all([
-      page.waitForLoadState('networkidle', { timeout: 25_000 }).catch(() => undefined),
-      searchButton.click(),
-    ]);
-  }
-
-  private async tryFillDate(page: Page, field: 'checkIn' | 'checkOut', value: string): Promise<void> {
-    const selector = field === 'checkIn'
-      ? 'input[name*="fromDate"], input[aria-label*="Check-in"], input[placeholder*="Check-in"]'
-      : 'input[name*="toDate"], input[aria-label*="Check-out"], input[placeholder*="Check-out"]';
-    const input = page.locator(selector).first();
-
-    if (await input.isVisible({ timeout: 1_000 }).catch(() => false)) {
-      await input.fill(value).catch(() => undefined);
-    }
-  }
-
-  private async findBestHotel(page: Page, hotelName: string): Promise<{ card: Locator; name: string; confidence: number } | undefined> {
-    const cards = await firstLocatorWithItems(page, marriottSelectors.hotelCards);
-    const count = Math.min(await cards.count(), 20);
-    let best: { card: Locator; name: string; confidence: number } | undefined;
-
-    for (let index = 0; index < count; index += 1) {
-      const card = cards.nth(index);
-      const name = await textFromFirst(card, marriottSelectors.hotelName);
-      const confidence = nameConfidence(hotelName, name);
-
-      if (!best || confidence > best.confidence) {
-        best = { card, name, confidence };
-      }
-    }
-
-    return best && best.confidence >= 0.45 ? best : undefined;
-  }
-
-  private async extractRate(card: Locator): Promise<RateCandidate> {
-    const priceText = await textFromFirst(card, marriottSelectors.priceText);
-    const parsed = parsePrice(priceText);
-
-    return {
-      price: parsed.price,
-      currency: parsed.currency ?? 'USD',
-      taxIncluded: /taxes included|含税/i.test(priceText),
-      isMemberRate: /member|会员/i.test(priceText),
-      isPrepaid: /prepay|prepaid|预付/i.test(priceText),
-    };
   }
 }

@@ -66,19 +66,31 @@ export async function closeCloakProxy(meta: CloakBrowserLaunchMeta): Promise<voi
   }
 }
 
-async function applyProxyOption(options: CloakLaunchOptions, proxyUrl: string): Promise<void> {
+export async function prepareCloakProxy(proxyUrl: string): Promise<{ proxyUrl: string; anonymizedProxyUrl?: string; geoip: boolean }> {
   const parsed = parseProxyUrl(proxyUrl);
 
   // Chromium rejects SOCKS URLs with inline credentials in --proxy-server.
   // Playwright also does not support SOCKS5 auth directly. A local HTTP proxy
   // bridge forwards traffic to the authenticated SOCKS upstream.
   if (parsed?.server.startsWith('socks') && parsed.username) {
-    options.proxy = await anonymizeProxy(proxyUrl);
-    options.geoip = false;
-    return;
+    const anonymizedProxyUrl = await anonymizeProxy(proxyUrl);
+    return {
+      proxyUrl: anonymizedProxyUrl,
+      anonymizedProxyUrl,
+      geoip: false,
+    };
   }
 
-  options.proxy = proxyUrl;
+  return {
+    proxyUrl,
+    geoip: env.CLOAK_GEOIP,
+  };
+}
+
+async function applyProxyOption(options: CloakLaunchOptions, proxyUrl: string): Promise<void> {
+  const prepared = await prepareCloakProxy(proxyUrl);
+  options.proxy = prepared.proxyUrl;
+  options.geoip = prepared.geoip;
 }
 
 function parseProxyUrl(proxyUrl: string): { server: string; username?: string; password?: string } | undefined {

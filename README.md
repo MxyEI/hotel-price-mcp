@@ -164,11 +164,11 @@ CLOAK_FINGERPRINT_MAX=999999999
 
 ## 后续落地重点
 
-三个 provider 已经按站点分离，真实上线前需要用实际酒店样例逐站调试页面选择器：
+三个 provider 已经按站点分离，真实上线前需要用实际酒店样例逐站调试：
 
 - 携程：`src/modules/ctrip/ctrip.selectors.ts`
 - 洲际：`src/modules/ihg/ihg.selectors.ts`
-- 万豪：`src/modules/marriott/marriott.selectors.ts`
+- 万豪：`src/modules/marriott/MarriottApiClient.ts`
 
 查询失败时会把截图保存到 `.artifacts/<provider>/`，用于定位验证码、风控、酒店未匹配或页面结构变化。
 
@@ -189,7 +189,26 @@ src/modules/ihg/IhgApiClient.ts
 src/modules/ihg/IhgProvider.ts
 ```
 
-## 逐站调试 selector
+### Marriott 接口模式
+
+万豪模块也按“先浏览器会话、再接口数据”的方向实现：
+
+1. 用 CloakBrowser 打开带酒店名、入住日期、离店日期和住客数的 `www.marriott.com/search/findHotels.mi` 搜索页。
+2. 让页面先完成 Akamai/Cookie/session 初始化。
+3. 捕获页面发出的 `/mi/query`、GraphQL、availability、search 类 JSON 响应。
+4. 从响应或页面 Apollo/初始状态里提取 `SearchLowestAvailableRates` 酒店价格节点。
+5. 按输入酒店名匹配，返回最低价格、币种、税费口径和房价代码。
+
+当前代理如果被万豪 Akamai 拒绝，会返回 `status: "blocked"`，并保存截图到 `.artifacts/marriott/`。这种情况下要先换更干净的住宅代理或能正常打开万豪官网的出口 IP，再继续校正接口字段。
+
+核心文件：
+
+```text
+src/modules/marriott/MarriottApiClient.ts
+src/modules/marriott/MarriottProvider.ts
+```
+
+## 逐站调试
 
 先一次只调一个站点，避免三个浏览器流程的日志混在一起。
 
@@ -211,9 +230,10 @@ ctrip | ihg | marriott | all
 
 1. 先跑 `marriott`，看命令行输出的 `status`、`sourceUrl`、`errorMessage`。
 2. 如果失败，打开 `.artifacts/<provider>/` 里的截图，看页面停在哪一步。
-3. 根据截图和浏览器 DevTools，修改对应的 `*.selectors.ts`。
-4. 再跑同一个命令，直到能返回 `status: "success"` 或准确返回 `no_availability`。
-5. 一个站点稳定后，再按同样方式调 `ihg` 和 `ctrip`。
+3. 携程这类 DOM 模块根据截图和 DevTools 修改对应的 `*.selectors.ts`。
+4. 洲际、万豪这类接口模块先确认页面是否被风控拦截；未拦截时再根据 DevTools Network 校正对应的 API client。
+5. 再跑同一个命令，直到能返回 `status: "success"` 或准确返回 `no_availability`。
+6. 一个站点稳定后，再按同样方式调其他站点。
 
 优先检查这些 selector：
 

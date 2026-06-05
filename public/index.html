@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>酒店查价控制台</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <h1>酒店查价控制台</h1>
+        <p>携程、洲际、万豪查价调试，以及万豪 CloakBrowser 手动查询。</p>
+      </div>
+      <button id="healthButton" class="icon-button" title="刷新服务状态" aria-label="刷新服务状态">
+        <span class="icon">↻</span>
+      </button>
+    </header>
+
+    <section class="status-strip">
+      <div>
+        <span class="label">服务</span>
+        <strong id="healthStatus">检查中</strong>
+      </div>
+      <div>
+        <span class="label">端口</span>
+        <strong>3100</strong>
+      </div>
+      <div>
+        <span class="label">浏览器</span>
+        <strong id="browserSummary">未启动</strong>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>查价</h2>
+            <p>提交后会按 provider 调用自动查价模块。</p>
+          </div>
+        </div>
+
+        <form id="priceForm" class="form-grid">
+          <label>
+            <span>酒店名称</span>
+            <input name="hotelName" value="上海鲁能JW万豪侯爵酒店" required>
+          </label>
+          <label>
+            <span>入住日期</span>
+            <input name="checkIn" type="date" value="2026-07-01" required>
+          </label>
+          <label>
+            <span>离店日期</span>
+            <input name="checkOut" type="date" value="2026-07-02" required>
+          </label>
+          <label>
+            <span>房间数</span>
+            <input name="rooms" type="number" min="1" value="1">
+          </label>
+          <label>
+            <span>成人数</span>
+            <input name="adults" type="number" min="1" value="2">
+          </label>
+          <label>
+            <span>儿童数</span>
+            <input name="children" type="number" min="0" value="0">
+          </label>
+
+          <div class="form-actions">
+            <button type="submit" class="primary-button">
+              <span class="icon">⌕</span>
+              开始查价
+            </button>
+          </div>
+        </form>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>万豪手动浏览器</h2>
+            <p>打开真实 CloakBrowser 窗口，手动进入万豪页面查询。</p>
+          </div>
+        </div>
+
+        <div class="browser-actions">
+          <label class="toggle-row">
+            <input id="openSearchUrl" type="checkbox" checked>
+            <span>直接打开带日期的万豪搜索页</span>
+          </label>
+          <button id="openMarriottButton" class="primary-button">
+            <span class="icon">▣</span>
+            打开浏览器
+          </button>
+          <button id="closeBrowserButton" class="danger-button" disabled>
+            <span class="icon">×</span>
+            关闭浏览器
+          </button>
+        </div>
+
+        <div class="session-box">
+          <div>
+            <span class="label">Session</span>
+            <strong id="sessionId">-</strong>
+          </div>
+          <div>
+            <span class="label">状态</span>
+            <strong id="sessionStatus">未启动</strong>
+          </div>
+          <div>
+            <span class="label">指纹</span>
+            <strong id="fingerprintSeed">-</strong>
+          </div>
+        </div>
+
+        <pre id="browserLog" class="log-box">等待操作</pre>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>结果</h2>
+          <p>自动查价结果和接口错误会显示在这里。</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Provider</th>
+              <th>匹配酒店</th>
+              <th>状态</th>
+              <th>价格</th>
+              <th>币种</th>
+              <th>错误</th>
+            </tr>
+          </thead>
+          <tbody id="resultRows">
+            <tr>
+              <td colspan="6" class="empty">暂无结果</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

@@ -1,6 +1,10 @@
 import cors from '@fastify/cors';
+import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { BrowserPool } from './browser/browserPool.js';
+import { ManualBrowserService } from './browser/manualBrowserService.js';
 import { env } from './config/env.js';
 import { registerRoutes } from './api/routes.js';
 import { CtripProvider } from './modules/ctrip/CtripProvider.js';
@@ -15,7 +19,9 @@ const app = Fastify({
   },
 });
 
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const browserPool = new BrowserPool();
+const manualBrowserService = new ManualBrowserService();
 const providers = [
   new CtripProvider(browserPool),
   new IhgProvider(browserPool),
@@ -25,9 +31,14 @@ const priceQueryService = new PriceQueryService(providers);
 const repository = new InMemoryPriceRepository();
 
 await app.register(cors, { origin: true });
-await registerRoutes(app, priceQueryService, repository);
+await app.register(fastifyStatic, {
+  root: path.join(rootDir, 'public'),
+  prefix: '/',
+});
+await registerRoutes(app, priceQueryService, repository, manualBrowserService);
 
 const shutdown = async (): Promise<void> => {
+  await manualBrowserService.closeAll();
   await browserPool.close();
   await app.close();
 };

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import type { ManualBrowserService, ManualBrowserSession } from '../browser/manualBrowserService.js';
 import type { PriceQueryService } from '../services/PriceQueryService.js';
 import type { InMemoryPriceRepository } from '../storage/priceRepository.js';
 
@@ -18,6 +19,7 @@ export async function registerRoutes(
   app: FastifyInstance,
   priceQueryService: PriceQueryService,
   repository: InMemoryPriceRepository,
+  manualBrowserService: ManualBrowserService,
 ): Promise<void> {
   app.get('/health', async () => ({ ok: true }));
 
@@ -56,4 +58,80 @@ export async function registerRoutes(
 
     return record;
   });
+
+  app.post('/manual-browser/start', async (request, reply) => {
+    const parsed = z.object({
+      provider: z.string().optional(),
+      targetUrl: z.string().url().optional(),
+      hotelName: z.string().trim().optional(),
+      checkIn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      rooms: z.coerce.number().int().positive().optional(),
+      adults: z.coerce.number().int().positive().optional(),
+      children: z.coerce.number().int().min(0).optional(),
+    }).safeParse(request.body ?? {});
+
+    if (!parsed.success) {
+      return reply.code(400).send({
+        error: 'invalid_request',
+        details: parsed.error.flatten(),
+      });
+    }
+
+    if (parsed.data.checkIn && parsed.data.checkOut && new Date(parsed.data.checkOut) <= new Date(parsed.data.checkIn)) {
+      return reply.code(400).send({
+        error: 'invalid_date_range',
+        message: 'checkOut must be later than checkIn',
+      });
+    }
+
+    try {
+      const session = await manualBrowserService.start(parsed.data);
+      return toManualBrowserResponse(session);
+    } catch (error) {
+      return reply.code(500).send({
+        error: 'browser_start_failed',
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  app.get('/manual-browser/sessions', async () => ({
+    sessions: manualBrowserService.list().map(toManualBrowserResponse),
+  }));
+
+  app.get('/manual-browser/status/:id', async (request, reply) => {
+    const params = z.object({ id: z.string() }).parse(request.params);
+    const session = manualBrowserService.get(params.id);
+    if (!session) {
+      return reply.code(404).send({ error: 'not_found' });
+    }
+
+    return toManualBrowserResponse(session);
+  });
+
+  app.post('/manual-browser/close/:id', async (request, reply) => {
+    const params = z.object({ id: z.string() }).parse(request.params);
+    const closed = await manualBrowserService.close(params.id);
+    if (!closed) {
+      return reply.code(404).send({ error: 'not_found' });
+    }
+
+    return { success: true };
+  });
+}
+
+function toManualBrowserResponse(session: ManualBrowserSession) {
+  return {
+    id: session.id,
+    status: session.status,
+    provider: session.provider,
+    targetUrl: session.targetUrl,
+    currentUrl: session.currentUrl,
+    fingerprintSeed: session.fingerprintSeed,
+    profileDir: session.profileDir,
+    startedAt: session.startedAt,
+    closedAt: session.closedAt,
+    errorMessage: session.errorMessage,
+  };
 }
