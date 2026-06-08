@@ -44,8 +44,10 @@ export class IhgProvider implements HotelPriceProvider {
       const artifact = await saveFailureArtifact(this.name, page, 'error');
       return unavailableResult(this.name, input, 'error', error instanceof Error ? error.message : String(error), page.url(), artifact);
     } finally {
-      await context.close().catch(() => undefined);
-      await this.browserPool.release(browser);
+      if (!input.keepBrowserOpen) {
+        await context.close().catch(() => undefined);
+        await this.browserPool.release(browser);
+      }
     }
   }
 }

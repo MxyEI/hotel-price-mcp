@@ -69,10 +69,11 @@ export async function closeCloakProxy(meta: CloakBrowserLaunchMeta): Promise<voi
 export async function prepareCloakProxy(proxyUrl: string): Promise<{ proxyUrl: string; anonymizedProxyUrl?: string; geoip: boolean }> {
   const parsed = parseProxyUrl(proxyUrl);
 
-  // Chromium rejects SOCKS URLs with inline credentials in --proxy-server.
-  // Playwright also does not support SOCKS5 auth directly. A local HTTP proxy
-  // bridge forwards traffic to the authenticated SOCKS upstream.
-  if (parsed?.server.startsWith('socks') && parsed.username) {
+  // 带认证的代理统一走 anonymizeProxy 本地桥接：
+  // - SOCKS5: Chromium/Playwright 不直接支持 SOCKS5 auth
+  // - HTTP: darwin 平台 CloakBrowser 不支持 inline auth，CDP 拦截器对国内代理兼容差
+  // anonymizeProxy 在本地起一个无需认证的 HTTP 代理，透明转发到上游带认证代理
+  if (parsed?.username) {
     const anonymizedProxyUrl = await anonymizeProxy(proxyUrl);
     return {
       proxyUrl: anonymizedProxyUrl,

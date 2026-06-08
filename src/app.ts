@@ -11,6 +11,7 @@ import { CtripProvider } from './modules/ctrip/CtripProvider.js';
 import { IhgProvider } from './modules/ihg/IhgProvider.js';
 import { MarriottProvider } from './modules/marriott/MarriottProvider.js';
 import { PriceQueryService } from './services/PriceQueryService.js';
+import { ProxyConfigService } from './services/ProxyConfigService.js';
 import { InMemoryPriceRepository } from './storage/priceRepository.js';
 
 const app = Fastify({
@@ -22,6 +23,7 @@ const app = Fastify({
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const browserPool = new BrowserPool();
 const manualBrowserService = new ManualBrowserService();
+const proxyConfigService = new ProxyConfigService();
 const providers = [
   new CtripProvider(browserPool),
   new IhgProvider(browserPool),
@@ -35,7 +37,7 @@ await app.register(fastifyStatic, {
   root: path.join(rootDir, 'public'),
   prefix: '/',
 });
-await registerRoutes(app, priceQueryService, repository, manualBrowserService);
+await registerRoutes(app, priceQueryService, repository, manualBrowserService, proxyConfigService, browserPool);
 
 const shutdown = async (): Promise<void> => {
   await manualBrowserService.closeAll();

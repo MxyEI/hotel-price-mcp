@@ -6,7 +6,8 @@ const state = {
 const els = {
   healthButton: document.querySelector('#healthButton'),
   healthStatus: document.querySelector('#healthStatus'),
-  browserSummary: document.querySelector('#browserSummary'),
+  browserPoolCount: document.querySelector('#browserPoolCount'),
+  closeAllBrowsersButton: document.querySelector('#closeAllBrowsersButton'),
   priceForm: document.querySelector('#priceForm'),
   resultRows: document.querySelector('#resultRows'),
   manualProvider: document.querySelector('#manualProvider'),
@@ -17,15 +18,30 @@ const els = {
   sessionStatus: document.querySelector('#sessionStatus'),
   fingerprintSeed: document.querySelector('#fingerprintSeed'),
   browserLog: document.querySelector('#browserLog'),
+  keepBrowserOpen: document.querySelector('#keepBrowserOpen'),
+  proxyEnabled: document.querySelector('#proxyEnabled'),
+  proxyUrl: document.querySelector('#proxyUrl'),
+  proxyExtractUrl: document.querySelector('#proxyExtractUrl'),
+  proxyExtractButton: document.querySelector('#proxyExtractButton'),
+  proxyInfo: document.querySelector('#proxyInfo'),
+  proxySaveButton: document.querySelector('#proxySaveButton'),
+  proxyTestButton: document.querySelector('#proxyTestButton'),
+  proxyTestResult: document.querySelector('#proxyTestResult'),
 };
 
 els.healthButton.addEventListener('click', checkHealth);
 els.priceForm.addEventListener('submit', handlePriceSubmit);
 els.openBrowserButton.addEventListener('click', openManualBrowser);
 els.closeBrowserButton.addEventListener('click', closeManualBrowser);
+els.closeAllBrowsersButton.addEventListener('click', closeAllBrowsers);
+els.proxySaveButton.addEventListener('click', saveProxy);
+els.proxyTestButton.addEventListener('click', testProxy);
+els.proxyExtractButton.addEventListener('click', extractProxy);
 
 await checkHealth();
+await refreshBrowserPool();
 await refreshBrowserSessions();
+await loadProxyConfig();
 
 async function checkHealth() {
   try {
@@ -44,6 +60,7 @@ async function handlePriceSubmit(event) {
   try {
     const data = await apiPost('/price/query', payload);
     renderResults(data.results ?? []);
+    await refreshBrowserPool();
   } catch (error) {
     els.resultRows.innerHTML = `<tr><td colspan="6" class="empty">${escapeHtml(error.message)}</td></tr>`;
   }
@@ -135,18 +152,39 @@ async function pollSession() {
   }
 }
 
+async function refreshBrowserPool() {
+  try {
+    const data = await apiGet('/browsers');
+    const count = data.count ?? 0;
+    els.browserPoolCount.textContent = `${count} 个`;
+    els.closeAllBrowsersButton.disabled = count === 0;
+  } catch {
+    els.browserPoolCount.textContent = '未知';
+    els.closeAllBrowsersButton.disabled = true;
+  }
+}
+
+async function closeAllBrowsers() {
+  els.closeAllBrowsersButton.disabled = true;
+  try {
+    await apiPost('/browsers/close-all', {});
+    await refreshBrowserPool();
+  } catch (error) {
+    els.closeAllBrowsersButton.disabled = false;
+  }
+}
+
 async function refreshBrowserSessions() {
   try {
     const data = await apiGet('/manual-browser/sessions');
     const open = (data.sessions ?? []).filter((item) => item.status === 'open' || item.status === 'starting');
-    els.browserSummary.textContent = open.length > 0 ? `${open.length} 个会话` : '未启动';
     if (!state.sessionId && open[0]) {
       state.sessionId = open[0].id;
       renderSession(open[0]);
       startPolling();
     }
   } catch {
-    els.browserSummary.textContent = '未知';
+    // ignore
   }
 }
 
@@ -155,7 +193,6 @@ function renderSession(session) {
     els.sessionId.textContent = '-';
     els.sessionStatus.textContent = '未启动';
     els.fingerprintSeed.textContent = '-';
-    els.browserSummary.textContent = '未启动';
     els.closeBrowserButton.disabled = true;
     return;
   }
@@ -163,7 +200,6 @@ function renderSession(session) {
   els.sessionId.textContent = session.id;
   els.sessionStatus.textContent = statusText(session.status);
   els.fingerprintSeed.textContent = session.fingerprintSeed ?? '-';
-  els.browserSummary.textContent = statusText(session.status);
   els.closeBrowserButton.disabled = session.status !== 'open' && session.status !== 'starting';
 
   const lines = [
@@ -202,6 +238,7 @@ function setResultLoading() {
 
 function formPayload() {
   const data = new FormData(els.priceForm);
+  const providers = data.getAll('providers');
   return {
     hotelName: String(data.get('hotelName') || '').trim(),
     checkIn: String(data.get('checkIn') || ''),
@@ -209,6 +246,8 @@ function formPayload() {
     rooms: Number(data.get('rooms') || 1),
     adults: Number(data.get('adults') || 2),
     children: Number(data.get('children') || 0),
+    providers: providers.length > 0 ? providers : undefined,
+    keepBrowserOpen: els.keepBrowserOpen.checked,
   };
 }
 
@@ -219,9 +258,9 @@ function providerHomeUrl(provider) {
     case 'ihg':
       return 'https://www.ihg.com.cn/hotels/cn/zh/reservation';
     case 'marriott':
-      return 'https://www.marriott.com/default.mi';
+      return 'https://www.marriott.com.cn/default.mi';
     default:
-      return 'https://www.marriott.com/default.mi';
+      return 'https://www.marriott.com.cn/default.mi';
   }
 }
 
@@ -273,4 +312,116 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+// --- Proxy config ---
+
+async function loadProxyConfig() {
+  try {
+    const config = await apiGet('/proxy');
+    els.proxyEnabled.checked = config.enabled;
+    els.proxyUrl.value = config.url || '';
+    els.proxyExtractUrl.value = config.extractUrl || '';
+    if (config.expiredAt) {
+      showProxyInfo(config.expiredAt);
+    }
+  } catch {
+    // ignore
+  }
+}
+
+async function saveProxy() {
+  const url = els.proxyUrl.value.trim();
+  const enabled = els.proxyEnabled.checked;
+  const extractUrl = els.proxyExtractUrl.value.trim();
+
+  try {
+    const config = await apiPut('/proxy', { url, enabled, extractUrl });
+    if (config.expiredAt) {
+      showProxyInfo(config.expiredAt);
+    }
+    showProxyResult('success', '保存成功');
+  } catch (error) {
+    showProxyResult('error', `保存失败: ${error.message}`);
+  }
+}
+
+async function extractProxy() {
+  // 先保存提取链接
+  const extractUrl = els.proxyExtractUrl.value.trim();
+  if (!extractUrl) {
+    showProxyResult('error', '请填写提取链接');
+    return;
+  }
+
+  await apiPut('/proxy', { extractUrl }).catch(() => {});
+
+  showProxyResult('testing', '正在从提取链接获取代理...');
+  els.proxyExtractButton.disabled = true;
+
+  try {
+    const result = await apiPost('/proxy/extract', {});
+    if (result.success) {
+      els.proxyUrl.value = result.proxyUrl;
+      els.proxyEnabled.checked = true;
+      if (result.expiredAt) {
+        showProxyInfo(result.expiredAt);
+      }
+      showProxyResult('success', `提取成功 — ${result.ip}:${result.port}`);
+    } else {
+      showProxyResult('error', `提取失败: ${result.error}`);
+    }
+  } catch (error) {
+    showProxyResult('error', `提取失败: ${error.message}`);
+  } finally {
+    els.proxyExtractButton.disabled = false;
+  }
+}
+
+async function testProxy() {
+  showProxyResult('testing', '正在测试连接...');
+  els.proxyTestButton.disabled = true;
+
+  try {
+    const result = await apiPost('/proxy/test', {});
+    if (result.success) {
+      showProxyResult('success', `连接成功 — ${result.host}:${result.port}，延迟 ${result.latencyMs}ms`);
+    } else {
+      showProxyResult('error', `连接失败: ${result.error}`);
+    }
+  } catch (error) {
+    showProxyResult('error', `测试失败: ${error.message}`);
+  } finally {
+    els.proxyTestButton.disabled = false;
+  }
+}
+
+function showProxyResult(type, message) {
+  els.proxyTestResult.textContent = message;
+  els.proxyTestResult.className = `proxy-result show ${type}`;
+}
+
+function showProxyInfo(expiredAt) {
+  if (!expiredAt) {
+    els.proxyInfo.textContent = '';
+    els.proxyInfo.style.display = 'none';
+    return;
+  }
+  const expireDate = new Date(expiredAt);
+  const remaining = Math.max(0, Math.floor((expiredAt - Date.now()) / 60_000));
+  els.proxyInfo.textContent = `到期时间: ${expireDate.toLocaleString('zh-CN')}（剩余 ${remaining} 分钟）`;
+  els.proxyInfo.style.display = 'block';
+}
+
+async function apiPut(url, body) {
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || data.error || `HTTP ${response.status}`);
+  }
+  return data;
 }

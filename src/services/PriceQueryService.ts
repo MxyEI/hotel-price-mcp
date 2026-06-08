@@ -1,4 +1,4 @@
-import type { HotelPriceProvider, HotelPriceResult, PriceQuery } from '../modules/base/types.js';
+import type { HotelPriceProvider, HotelPriceResult, PriceQuery, ProviderName } from '../modules/base/types.js';
 import { env } from '../config/env.js';
 
 export class PriceQueryService {
@@ -6,10 +6,19 @@ export class PriceQueryService {
     private readonly providers: HotelPriceProvider[],
     private readonly concurrency = env.PROVIDER_CONCURRENCY,
   ) {}
-// 添加了并发控制，按照env.PROVIDER_CONCURRENCY中并发严格控制
+
+  get availableProviders(): ProviderName[] {
+    return this.providers.map((p) => p.name);
+  }
+
+  // 添加了并发控制，按照env.PROVIDER_CONCURRENCY中并发严格控制
   async queryAll(input: PriceQuery): Promise<HotelPriceResult[]> {
+    const selected = input.providers?.length
+      ? this.providers.filter((p) => input.providers!.includes(p.name))
+      : this.providers;
+
     const settled = await allSettledWithConcurrency(
-      this.providers,
+      selected,
       this.concurrency,
       async (provider) => provider.query(input),
     );
@@ -19,7 +28,7 @@ export class PriceQueryService {
         return result.value;
       }
 
-      const provider = this.providers[index];
+      const provider = selected[index];
       return {
         provider: provider.name,
         hotelName: input.hotelName,

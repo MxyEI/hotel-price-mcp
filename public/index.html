@@ -28,8 +28,13 @@
         <strong>3100</strong>
       </div>
       <div>
-        <span class="label">浏览器</span>
-        <strong id="browserSummary">未启动</strong>
+        <span class="label">查价浏览器</span>
+        <strong id="browserPoolCount">0 个</strong>
+      </div>
+      <div class="status-action">
+        <button id="closeAllBrowsersButton" class="danger-button-sm" disabled>
+          关闭全部浏览器
+        </button>
       </div>
     </section>
 
@@ -66,6 +71,27 @@
           <label>
             <span>儿童数</span>
             <input name="children" type="number" min="0" value="0">
+          </label>
+
+          <fieldset class="provider-fieldset">
+            <legend>查询平台</legend>
+            <label class="checkbox-row">
+              <input type="checkbox" name="providers" value="ctrip" checked>
+              <span>携程</span>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" name="providers" value="ihg" checked>
+              <span>洲际 (IHG)</span>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" name="providers" value="marriott" checked>
+              <span>万豪 (Marriott)</span>
+            </label>
+          </fieldset>
+
+          <label class="toggle-row keep-browser-row">
+            <input id="keepBrowserOpen" type="checkbox" checked>
+            <span>查价后保持浏览器打开</span>
           </label>
 
           <div class="form-actions">
@@ -124,6 +150,50 @@
         </div>
 
         <pre id="browserLog" class="log-box">等待操作</pre>
+      </article>
+    </section>
+
+    <section class="grid grid-proxy">
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>代理 IP 配置</h2>
+            <p>配置浏览器使用的代理服务器，支持 SOCKS5 和 HTTP 代理。</p>
+          </div>
+        </div>
+
+        <div class="proxy-form">
+          <label class="toggle-row">
+            <input id="proxyEnabled" type="checkbox">
+            <span>启用代理</span>
+          </label>
+          <label>
+            <span>提取链接</span>
+            <div class="input-with-button">
+              <input id="proxyExtractUrl" type="text" placeholder="https://service.ipzan.com/core-extract?num=1&no=...">
+              <button id="proxyExtractButton" class="icon-button-wide" type="button">
+                <span class="icon">↓</span>
+                提取
+              </button>
+            </div>
+          </label>
+          <label>
+            <span>当前代理地址</span>
+            <input id="proxyUrl" type="text" placeholder="socks5://user:pass@host:port">
+          </label>
+          <div class="proxy-info" id="proxyInfo"></div>
+          <div class="proxy-actions">
+            <button id="proxySaveButton" class="primary-button">
+              <span class="icon">✓</span>
+              保存
+            </button>
+            <button id="proxyTestButton" class="icon-button-wide">
+              <span class="icon">⚡</span>
+              测试连接
+            </button>
+          </div>
+          <div id="proxyTestResult" class="proxy-result"></div>
+        </div>
       </article>
     </section>
 

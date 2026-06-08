@@ -9,6 +9,8 @@ export type PriceQuery = {
   children: number;
   locale?: string;
   currency?: string;
+  providers?: ProviderName[];
+  keepBrowserOpen?: boolean;
 };
 
 export type RateCandidate = {

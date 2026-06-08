@@ -2,8 +2,9 @@ import type { Page, Response } from 'playwright-core';
 import { nameConfidence } from '../base/normalize.js';
 import type { PriceQuery, RateCandidate } from '../base/types.js';
 
-const MARRIOTT_ORIGIN = 'https://www.marriott.com';
-const API_RESPONSE_PATTERN = /\/mi\/query|graphql|availability|search/i;
+const MARRIOTT_ORIGIN = 'https://www.marriott.com.cn';
+const MARRIOTT_HOME = `${MARRIOTT_ORIGIN}/default.mi`;
+const API_RESPONSE_PATTERN = /\/mi\/query|graphql|availability|search|findHotels/i;
 const SEARCH_RESULT_TYPENAME = 'SearchLowestAvailableRates';
 const SEARCH_EDGE_TYPENAME = 'SearchLowestAvailableRatesSearchEdge';
 
@@ -60,11 +61,18 @@ export class MarriottApiClient {
   constructor(private readonly page: Page) {}
 
   async findPrice(input: PriceQuery): Promise<MarriottApiMatch | undefined> {
+    // 先访问首页预热 session，建立 cookie 避免被反爬拦截
+    await this.warmup();
+
     const searchUrl = this.buildSearchUrl(input);
     await this.captureApiResponses(async () => {
-      await this.page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
-      await this.page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => undefined);
-      await this.page.waitForTimeout(5_000);
+      // 带 referrer 导航，模拟从首页跳转
+      await this.page.goto(searchUrl, {
+        waitUntil: 'domcontentloaded',
+        referer: MARRIOTT_HOME,
+      });
+      await this.page.waitForLoadState('networkidle', { timeout: 25_000 }).catch(() => undefined);
+      await this.page.waitForTimeout(3_000 + Math.random() * 2_000);
     });
 
     const candidates = [
@@ -73,6 +81,19 @@ export class MarriottApiClient {
     ];
 
     return this.pickBestCandidate(input, candidates);
+  }
+
+  private async warmup(): Promise<void> {
+    try {
+      await this.page.goto(MARRIOTT_HOME, { waitUntil: 'domcontentloaded' });
+      // 随机等待 2-4 秒，模拟人类浏览
+      await this.page.waitForTimeout(2_000 + Math.random() * 2_000);
+      // 轻微滚动，触发更多 cookie / JS 初始化
+      await this.page.evaluate(() => window.scrollBy(0, 200));
+      await this.page.waitForTimeout(500 + Math.random() * 500);
+    } catch {
+      // 预热失败不阻塞主流程
+    }
   }
 
   buildSearchUrl(input: PriceQuery): string {
@@ -243,7 +264,7 @@ export class MarriottApiClient {
   private buildHotelUrl(property: MarriottProperty | undefined): string {
     const seoNickname = property?.seoNickname ?? property?.seo_nickname;
     if (seoNickname) {
-      return `${MARRIOTT_ORIGIN}/en-us/hotels/${seoNickname}/overview/`;
+      return `${MARRIOTT_ORIGIN}/hotels/${seoNickname}/overview/`;
     }
 
     return property?.id

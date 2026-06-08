@@ -1,28 +1,45 @@
 export const ctripSelectors = {
-  homeUrl: 'https://hotels.ctrip.com/',
-  hotelSearchInput: [
-    'input[placeholder*="酒店"]',
-    'input[placeholder*="目的地"]',
-    'input[aria-label*="酒店"]',
-  ],
-  searchButton: [
-    'button:has-text("搜索")',
-    '[role="button"]:has-text("搜索")',
-  ],
+  // 直接用搜索结果页 URL，绕过首页表单填写
+  searchUrl(hotelName: string, checkIn: string, checkOut: string, adults: number): string {
+    const params = new URLSearchParams({
+      keyword: hotelName,
+      checkin: checkIn.replace(/-/g, '/'),
+      checkout: checkOut.replace(/-/g, '/'),
+      adult: String(adults),
+      searchBoxArg: 't',
+    });
+    return `https://hotels.ctrip.com/hotels/list?${params}`;
+  },
+
+  // API 响应匹配
+  apiResponsePattern: /\/api\/hotels\/|hotel\/list|hotelSearch|\/restapi\/soa2\//i,
+
+  // DOM 选择器 — 宽泛匹配，按优先级排列
   hotelCards: [
-    '[data-testid*="hotel"]',
-    '.hotel-card',
-    '.list-card',
+    '[id^="hotel_"]',
+    'div[data-hotelid]',
+    '[class*="hotelItem"]',
+    '[class*="HotelItem"]',
+    '[class*="hotel-item"]',
+    '[class*="list_item"]',
+    '[class*="ListItem"]',
+    'li[class*="hotel"]',
   ],
   hotelName: [
-    '[data-testid*="hotel-name"]',
-    '.hotel-name',
+    'a[class*="name"]',
+    '[class*="hotelName"]',
+    '[class*="HotelName"]',
+    '[class*="hotel_name"]',
+    'a[target="_blank"][title]',
     'h2',
     'h3',
+    'a[href*="/hotels/"]',
   ],
   priceText: [
     '[class*="price"]',
-    '[data-testid*="price"]',
+    '[class*="Price"]',
+    'span[class*="real"]',
+    'dfn + span',
     'text=/[¥￥][0-9,]+/',
   ],
 };

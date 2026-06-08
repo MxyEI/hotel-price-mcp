@@ -6,6 +6,10 @@ export class BrowserPool {
   private readonly activeBrowsers = new Set<Browser>();
   private readonly launchMeta = new Map<Browser, CloakBrowserLaunchMeta>();
 
+  get size(): number {
+    return this.activeBrowsers.size;
+  }
+
   async page(): Promise<{ browser: Browser; context: BrowserContext; page: Page; meta: CloakBrowserLaunchMeta }> {
     const { browser, meta } = await launchCloakBrowser();
     this.activeBrowsers.add(browser);
@@ -14,6 +18,10 @@ export class BrowserPool {
       viewport: { width: 1365, height: 900 },
       locale: 'zh-CN',
       timezoneId: 'Asia/Shanghai',
+      extraHTTPHeaders: {
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'sec-ch-ua-platform': '"Windows"',
+      },
     });
     const page = await context.newPage();
     return { browser, context, page, meta };

@@ -43,9 +43,9 @@ npm run dev
 curl -X POST http://localhost:3100/price/query \
   -H 'Content-Type: application/json' \
   -d '{
-    "hotelName": "上海静安瑞吉酒店",
-    "checkIn": "2026-07-01",
-    "checkOut": "2026-07-02",
+    "hotelName": "西安皇冠假日",
+    "checkIn": "2026-06-12",
+    "checkOut": "2026-06-13",
     "rooms": 1,
     "adults": 2
   }'

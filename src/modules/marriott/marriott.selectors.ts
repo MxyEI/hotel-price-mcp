@@ -1,12 +1,14 @@
 export const marriottSelectors = {
-  homeUrl: 'https://www.marriott.com/default.mi',
+  homeUrl: 'https://www.marriott.com.cn/default.mi',
   destinationInput: [
     'input[name="destinationAddress.destination"]',
     'input[placeholder*="Destination"]',
+    'input[placeholder*="目的地"]',
     'input[aria-label*="Destination"]',
   ],
   searchButton: [
     'button:has-text("Find Hotels")',
+    'button:has-text("查找酒店")',
     'button:has-text("Search")',
     '[role="button"]:has-text("Find Hotels")',
   ],
@@ -25,5 +27,6 @@ export const marriottSelectors = {
     '[class*="price"]',
     '[class*="rate"]',
     'text=/\\$[0-9,]+/',
+    'text=/[¥￥][0-9,]+/',
   ],
 };

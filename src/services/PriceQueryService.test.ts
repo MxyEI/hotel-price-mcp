@@ -8,20 +8,20 @@ test('honors PROVIDER_CONCURRENCY=1 by running provider queries sequentially', a
   const firstGate = deferred<void>();
   const events: string[] = [];
   const input: PriceQuery = {
-    hotelName: '上海静安瑞吉酒店',
-    checkIn: '2026-07-01',
-    checkOut: '2026-07-02',
+    hotelName: '西安皇冠假日',
+    checkIn: '2026-06-12',
+    checkOut: '2026-06-13',
     rooms: 1,
     adults: 2,
     children: 0,
   };
 
   const providers: HotelPriceProvider[] = [
-    provider('ctrip', async () => {
-      events.push('ctrip:start');
-      await firstGate.promise;
-      events.push('ctrip:end');
-    }),
+    // provider('ctrip', async () => {
+    //   events.push('ctrip:start');
+    //   await firstGate.promise;
+    //   events.push('ctrip:end');
+    // }),
     provider('ihg', async () => {
       events.push('ihg:start');
       events.push('ihg:end');

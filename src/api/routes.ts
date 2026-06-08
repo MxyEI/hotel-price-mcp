@@ -1,8 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import type { BrowserPool } from '../browser/browserPool.js';
 import type { ManualBrowserService, ManualBrowserSession } from '../browser/manualBrowserService.js';
 import type { PriceQueryService } from '../services/PriceQueryService.js';
 import type { InMemoryPriceRepository } from '../storage/priceRepository.js';
+import type { ProxyConfigService } from '../services/ProxyConfigService.js';
+
+const providerNameSchema = z.enum(['ctrip', 'ihg', 'marriott']);
 
 const priceQuerySchema = z.object({
   hotelName: z.string().trim().min(1),
@@ -13,6 +17,8 @@ const priceQuerySchema = z.object({
   children: z.coerce.number().int().min(0).default(0),
   locale: z.string().optional(),
   currency: z.string().optional(),
+  providers: z.array(providerNameSchema).optional(),
+  keepBrowserOpen: z.boolean().optional().default(true),
 });
 
 export async function registerRoutes(
@@ -20,8 +26,14 @@ export async function registerRoutes(
   priceQueryService: PriceQueryService,
   repository: InMemoryPriceRepository,
   manualBrowserService: ManualBrowserService,
+  proxyConfigService: ProxyConfigService,
+  browserPool: BrowserPool,
 ): Promise<void> {
   app.get('/health', async () => ({ ok: true }));
+
+  app.get('/providers', async () => ({
+    providers: priceQueryService.availableProviders,
+  }));
 
   app.post('/price/query', async (request, reply) => {
     const parsed = priceQuerySchema.safeParse(request.body);
@@ -118,6 +130,63 @@ export async function registerRoutes(
     }
 
     return { success: true };
+  });
+
+  // --- Browser pool (查价浏览器) ---
+
+  app.get('/browsers', async () => ({
+    count: browserPool.size,
+  }));
+
+  app.post('/browsers/close-all', async () => {
+    await browserPool.close();
+    return { success: true, remaining: browserPool.size };
+  });
+
+  // --- Proxy config endpoints ---
+
+  app.get('/proxy', async () => proxyConfigService.get());
+
+  app.put('/proxy', async (request, reply) => {
+    const parsed = z.object({
+      url: z.string().trim().optional(),
+      enabled: z.boolean().optional(),
+      extractUrl: z.string().trim().optional(),
+    }).safeParse(request.body);
+
+    if (!parsed.success) {
+      return reply.code(400).send({
+        error: 'invalid_request',
+        details: parsed.error.flatten(),
+      });
+    }
+
+    proxyConfigService.update(parsed.data);
+    return proxyConfigService.get();
+  });
+
+  app.post('/proxy/extract', async (_request, reply) => {
+    try {
+      const result = await proxyConfigService.extract();
+      return result;
+    } catch (error) {
+      return reply.code(500).send({
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  app.post('/proxy/test', async (request, reply) => {
+    try {
+      const result = await proxyConfigService.test();
+      return result;
+    } catch (error) {
+      return reply.code(500).send({
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   });
 }
 
