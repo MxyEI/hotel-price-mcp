@@ -3,6 +3,71 @@ const state = {
   pollTimer: null,
 };
 
+// --- localStorage 持久化 ---
+const STORAGE_KEY = 'hotel-price-mcp-settings';
+
+function loadSavedSettings() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveSettings() {
+  const form = els.priceForm;
+  const providers = [...form.querySelectorAll('input[name="providers"]')]
+    .filter((el) => el.checked)
+    .map((el) => el.value);
+
+  const settings = {
+    hotelName: form.hotelName.value,
+    checkIn: form.checkIn.value,
+    checkOut: form.checkOut.value,
+    rooms: form.rooms.value,
+    adults: form.adults.value,
+    children: form.children.value,
+    providers,
+    keepBrowserOpen: els.keepBrowserOpen.checked,
+    manualProvider: els.manualProvider.value,
+    openSearchUrl: els.openSearchUrl.checked,
+    proxyExtractUrl: els.proxyExtractUrl.value,
+    proxyUrl: els.proxyUrl.value,
+  };
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  } catch {
+    // storage full or blocked — ignore
+  }
+}
+
+function restoreSettings() {
+  const saved = loadSavedSettings();
+  if (!saved || !Object.keys(saved).length) return;
+
+  const form = els.priceForm;
+  if (saved.hotelName) form.hotelName.value = saved.hotelName;
+  if (saved.checkIn) form.checkIn.value = saved.checkIn;
+  if (saved.checkOut) form.checkOut.value = saved.checkOut;
+  if (saved.rooms) form.rooms.value = saved.rooms;
+  if (saved.adults) form.adults.value = saved.adults;
+  if (saved.children !== undefined) form.children.value = saved.children;
+  if (saved.keepBrowserOpen !== undefined) els.keepBrowserOpen.checked = saved.keepBrowserOpen;
+  if (saved.manualProvider) els.manualProvider.value = saved.manualProvider;
+  if (saved.openSearchUrl !== undefined) els.openSearchUrl.checked = saved.openSearchUrl;
+  if (saved.proxyExtractUrl) els.proxyExtractUrl.value = saved.proxyExtractUrl;
+  if (saved.proxyUrl) els.proxyUrl.value = saved.proxyUrl;
+
+  // 恢复 providers 勾选状态
+  if (Array.isArray(saved.providers)) {
+    form.querySelectorAll('input[name="providers"]').forEach((el) => {
+      el.checked = saved.providers.includes(el.value);
+    });
+  }
+}
+
 const els = {
   healthButton: document.querySelector('#healthButton'),
   healthStatus: document.querySelector('#healthStatus'),
@@ -37,6 +102,18 @@ els.closeAllBrowsersButton.addEventListener('click', closeAllBrowsers);
 els.proxySaveButton.addEventListener('click', saveProxy);
 els.proxyTestButton.addEventListener('click', testProxy);
 els.proxyExtractButton.addEventListener('click', extractProxy);
+
+// 自动保存表单输入到 localStorage
+els.priceForm.addEventListener('input', saveSettings);
+els.priceForm.addEventListener('change', saveSettings);
+els.keepBrowserOpen.addEventListener('change', saveSettings);
+els.manualProvider.addEventListener('change', saveSettings);
+els.openSearchUrl.addEventListener('change', saveSettings);
+els.proxyExtractUrl.addEventListener('input', saveSettings);
+els.proxyUrl.addEventListener('input', saveSettings);
+
+// 恢复上次输入
+restoreSettings();
 
 await checkHealth();
 await refreshBrowserPool();
@@ -255,6 +332,8 @@ function providerHomeUrl(provider) {
   switch (provider) {
     case 'ctrip':
       return 'https://www.ctrip.com/';
+    case 'hyatt':
+      return 'https://www.hyatt.com/zh-CN';
     case 'ihg':
       return 'https://www.ihg.com.cn/hotels/cn/zh/reservation';
     case 'marriott':
@@ -320,8 +399,13 @@ async function loadProxyConfig() {
   try {
     const config = await apiGet('/proxy');
     els.proxyEnabled.checked = config.enabled;
-    els.proxyUrl.value = config.url || '';
-    els.proxyExtractUrl.value = config.extractUrl || '';
+    // 仅在本地无缓存值时才从服务端覆盖
+    if (config.url && !els.proxyUrl.value) {
+      els.proxyUrl.value = config.url;
+    }
+    if (config.extractUrl && !els.proxyExtractUrl.value) {
+      els.proxyExtractUrl.value = config.extractUrl;
+    }
     if (config.expiredAt) {
       showProxyInfo(config.expiredAt);
     }

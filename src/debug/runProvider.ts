@@ -1,5 +1,6 @@
 import { BrowserPool } from '../browser/browserPool.js';
 import { CtripProvider } from '../modules/ctrip/CtripProvider.js';
+import { HyattProvider } from '../modules/hyatt/HyattProvider.js';
 import { IhgProvider } from '../modules/ihg/IhgProvider.js';
 import { MarriottProvider } from '../modules/marriott/MarriottProvider.js';
 import type { HotelPriceProvider, PriceQuery, ProviderName } from '../modules/base/types.js';
@@ -21,7 +22,7 @@ if (!args.provider || !args.hotel || !args.checkIn || !args.checkOut) {
     '  npm run debug:provider -- --provider marriott --hotel "Shanghai Marriott Marquis City Centre" --checkIn 2026-07-01 --checkOut 2026-07-02',
     '',
     'Providers:',
-    '  ctrip | ihg | marriott | all',
+    '  ctrip | hyatt | ihg | marriott | all',
   ].join('\n'));
   process.exit(1);
 }
@@ -56,12 +57,13 @@ try {
 function createProviders(browserPool: BrowserPool, provider: ProviderName | 'all'): HotelPriceProvider[] {
   const all = {
     ctrip: new CtripProvider(browserPool),
+    hyatt: new HyattProvider(browserPool),
     ihg: new IhgProvider(browserPool),
     marriott: new MarriottProvider(browserPool),
   };
 
   if (provider === 'all') {
-    return [all.ctrip, all.ihg, all.marriott];
+    return [all.ctrip, all.hyatt, all.ihg, all.marriott];
   }
 
   return [all[provider]];

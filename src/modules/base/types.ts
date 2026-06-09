@@ -1,4 +1,4 @@
-export type ProviderName = 'ctrip' | 'ihg' | 'marriott';
+export type ProviderName = 'ctrip' | 'hyatt' | 'ihg' | 'marriott';
 
 export type PriceQuery = {
   hotelName: string;

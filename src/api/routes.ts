@@ -6,7 +6,7 @@ import type { PriceQueryService } from '../services/PriceQueryService.js';
 import type { InMemoryPriceRepository } from '../storage/priceRepository.js';
 import type { ProxyConfigService } from '../services/ProxyConfigService.js';
 
-const providerNameSchema = z.enum(['ctrip', 'ihg', 'marriott']);
+const providerNameSchema = z.enum(['ctrip', 'hyatt', 'ihg', 'marriott']);
 
 const priceQuerySchema = z.object({
   hotelName: z.string().trim().min(1),

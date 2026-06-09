@@ -34,7 +34,7 @@ const envSchema = z.object({
   CLOAK_FINGERPRINT_ROTATE: booleanFromEnv(true),
   CLOAK_FINGERPRINT_MIN: z.coerce.number().int().positive().default(10_000),
   CLOAK_FINGERPRINT_MAX: z.coerce.number().int().positive().default(999_999_999),
-  QUERY_TIMEOUT_MS: z.coerce.number().int().positive().default(90_000),
+  QUERY_TIMEOUT_MS: z.coerce.number().int().positive().default(300_000),
   PROVIDER_CONCURRENCY: z.coerce.number().int().positive().default(1),
   ARTIFACT_DIR: z.string().default('.artifacts'),
 });

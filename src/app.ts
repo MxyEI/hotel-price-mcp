@@ -9,6 +9,7 @@ import { env } from './config/env.js';
 import { registerRoutes } from './api/routes.js';
 import { CtripProvider } from './modules/ctrip/CtripProvider.js';
 import { IhgProvider } from './modules/ihg/IhgProvider.js';
+import { HyattProvider } from './modules/hyatt/HyattProvider.js';
 import { MarriottProvider } from './modules/marriott/MarriottProvider.js';
 import { PriceQueryService } from './services/PriceQueryService.js';
 import { ProxyConfigService } from './services/ProxyConfigService.js';
@@ -26,6 +27,7 @@ const manualBrowserService = new ManualBrowserService();
 const proxyConfigService = new ProxyConfigService();
 const providers = [
   new CtripProvider(browserPool),
+  new HyattProvider(browserPool),
   new IhgProvider(browserPool),
   new MarriottProvider(browserPool),
 ];
